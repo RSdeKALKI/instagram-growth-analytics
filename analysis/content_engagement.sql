@@ -1,82 +1,119 @@
 USE Instagram;
 
--- User Engagement
+-- Content Engagement
 
--- 1. Total likes and comments
+-- 1. Engagement for every photo
 SELECT
-    (SELECT COUNT(*) FROM Likes) AS total_likes,
-    (SELECT COUNT(*) FROM Comments) AS total_comments;
-
--- 2. Likes given by each user
-SELECT
-    Users.ID,
+    Photos.ID AS photo_id,
     Users.User_name,
-    COUNT(Likes.Photo_id) AS likes_given
-FROM Users
-LEFT JOIN Likes
-    ON Users.ID = Likes.User_id
-GROUP BY Users.ID, Users.User_name
-ORDER BY likes_given DESC;
-
--- 3. Comments made by each user
-SELECT
-    Users.ID,
-    Users.User_name,
-    COUNT(Comments.ID) AS comments_made
-FROM Users
-LEFT JOIN Comments
-    ON Users.ID = Comments.User_id
-GROUP BY Users.ID, Users.User_name
-ORDER BY comments_made DESC;
-
--- 4. Likes received by each user
-SELECT
-    Users.ID,
-    Users.User_name,
-    COUNT(Likes.Photo_id) AS likes_received
-FROM Users
-LEFT JOIN Photos
+    COALESCE(likes.likes, 0) AS likes,
+    COALESCE(comments.comments, 0) AS comments,
+    COALESCE(likes.likes, 0) + COALESCE(comments.comments, 0)
+        AS total_engagement
+FROM Photos
+JOIN Users
     ON Users.ID = Photos.User_ID
-LEFT JOIN Likes
-    ON Photos.ID = Likes.Photo_id
-GROUP BY Users.ID, Users.User_name
-ORDER BY likes_received DESC;
+LEFT JOIN (
+    SELECT
+        Photo_id,
+        COUNT(*) AS likes
+    FROM Likes
+    GROUP BY Photo_id
+) AS likes
+    ON Photos.ID = likes.Photo_id
+LEFT JOIN (
+    SELECT
+        Photo_id,
+        COUNT(*) AS comments
+    FROM Comments
+    GROUP BY Photo_id
+) AS comments
+    ON Photos.ID = comments.Photo_id
+ORDER BY total_engagement DESC;
 
--- 5. Comments received by each user
+-- 2. Top 10 photos by total engagement
 SELECT
-    Users.ID,
+    Photos.ID AS photo_id,
     Users.User_name,
-    COUNT(Comments.ID) AS comments_received
-FROM Users
-LEFT JOIN Photos
+    COALESCE(likes.likes, 0) AS likes,
+    COALESCE(comments.comments, 0) AS comments,
+    COALESCE(likes.likes, 0) + COALESCE(comments.comments, 0)
+        AS total_engagement
+FROM Photos
+JOIN Users
     ON Users.ID = Photos.User_ID
-LEFT JOIN Comments
-    ON Photos.ID = Comments.Photo_id
-GROUP BY Users.ID, Users.User_name
-ORDER BY comments_received DESC;
+LEFT JOIN (
+    SELECT Photo_id, COUNT(*) AS likes
+    FROM Likes
+    GROUP BY Photo_id
+) AS likes
+    ON Photos.ID = likes.Photo_id
+LEFT JOIN (
+    SELECT Photo_id, COUNT(*) AS comments
+    FROM Comments
+    GROUP BY Photo_id
+) AS comments
+    ON Photos.ID = comments.Photo_id
+ORDER BY total_engagement DESC
+LIMIT 10;
 
--- 6. Average likes per photo
+-- 3. Photos with zero engagement
 SELECT
-    ROUND(AVG(like_count), 2) AS average_likes_per_photo
+    Photos.ID AS photo_id,
+    Users.User_name
+FROM Photos
+JOIN Users
+    ON Users.ID = Photos.User_ID
+LEFT JOIN (
+    SELECT Photo_id, COUNT(*) AS likes
+    FROM Likes
+    GROUP BY Photo_id
+) AS likes
+    ON Photos.ID = likes.Photo_id
+LEFT JOIN (
+    SELECT Photo_id, COUNT(*) AS comments
+    FROM Comments
+    GROUP BY Photo_id
+) AS comments
+    ON Photos.ID = comments.Photo_id
+WHERE COALESCE(likes.likes, 0) + COALESCE(comments.comments, 0) = 0;
+
+-- 4. Engagement distribution
+SELECT
+    CASE
+        WHEN total_engagement = 0 THEN '0'
+        WHEN total_engagement BETWEEN 1 AND 5 THEN '1-5'
+        WHEN total_engagement BETWEEN 6 AND 10 THEN '6-10'
+        WHEN total_engagement BETWEEN 11 AND 25 THEN '11-25'
+        ELSE '26+'
+    END AS engagement_bucket,
+    COUNT(*) AS photos
 FROM (
     SELECT
         Photos.ID,
-        COUNT(Likes.User_id) AS like_count
+        COALESCE(likes.likes, 0) + COALESCE(comments.comments, 0)
+            AS total_engagement
     FROM Photos
-    LEFT JOIN Likes
-        ON Photos.ID = Likes.Photo_id
-    GROUP BY Photos.ID
-) AS photo_likes;
-
--- 7. Average comments per photo
-SELECT
-    ROUND(AVG(comment_count), 2) AS average_comments_per_photo
-FROM (
-    SELECT
-        Photos.ID,
-        COUNT(Comments.ID) AS comment_count
-    FROM Photos
-    LEFT JOIN Comments
-        ON Photos.ID = Comments.Photo_id
-    GROUP BY Photos.ID
-) AS photo_comments;
+    LEFT JOIN (
+        SELECT Photo_id, COUNT(*) AS likes
+        FROM Likes
+        GROUP BY Photo_id
+    ) AS likes
+        ON Photos.ID = likes.Photo_id
+    LEFT JOIN (
+        SELECT Photo_id, COUNT(*) AS comments
+        FROM Comments
+        GROUP BY Photo_id
+    ) AS comments
+        ON Photos.ID = comments.Photo_id
+) AS photo_metrics
+GROUP BY engagement_bucket
+ORDER BY MIN(
+    CASE engagement_bucket
+        WHEN '0' THEN 0
+        WHEN '1-5' THEN 1
+        WHEN '6-10' THEN 2
+        WHEN '11-25' THEN 3
+        WHEN '26+' THEN 4
+    END
+);
