@@ -42,12 +42,11 @@ WHERE Photos.ID IS NULL;
 
 -- 6. Creator / activation rate
 SELECT
+    SELECT
     COUNT(DISTINCT Photos.User_ID) AS creators,
-    COUNT(Users.ID) AS total_users,
-    ROUND(
-        COUNT(DISTINCT Photos.User_ID) * 100.0 / COUNT(Users.ID),
-        2
-    ) AS creator_rate_percent
+    COUNT(DISTINCT Users.ID) AS total_users,
+	concat(round(COUNT(DISTINCT Photos.User_ID) * 100.0
+        / COUNT(DISTINCT Users.ID), 0), '%') AS creator_rate_percent
 FROM Users
 LEFT JOIN Photos
     ON Users.ID = Photos.User_ID;
