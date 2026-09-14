@@ -1,57 +1,27 @@
 USE Instagram;
 
--- Instagram Growth & User Activation
-
--- 1. Total registered users
+-- 1. How many users registered on the platform?
 SELECT COUNT(*) AS total_users
 FROM Users;
 
--- 2. User registrations by year
+Result: 100 users.
+
+
+-- 2. Which year had the highest number of new user registrations?
 SELECT
     YEAR(Created_at) AS registration_year,
     COUNT(*) AS new_users
 FROM Users
 GROUP BY YEAR(Created_at)
-ORDER BY registration_year;
+ORDER BY new_users DESC;
 
--- 3. User registrations by month across the full dataset
-SELECT
-    MONTH(Created_at) AS registration_month,
-    MONTHNAME(Created_at) AS month_name,
-    COUNT(*) AS new_users
-FROM Users
-GROUP BY MONTH(Created_at), MONTHNAME(Created_at)
-ORDER BY registration_month;
+Results & Insights:
 
--- 4. Registration day of week
-SELECT
-    DAYNAME(Created_at) AS registration_day,
-    COUNT(*) AS registrations
-FROM Users
-GROUP BY DAYOFWEEK(Created_at), DAYNAME(Created_at)
-ORDER BY registrations DESC;
-
--- 5. Users who never posted a photo
-SELECT
-    Users.ID,
-    Users.User_name
-FROM Users
-LEFT JOIN Photos
-    ON Users.ID = Photos.User_ID
-WHERE Photos.ID IS NULL;
-
--- 6. Creator / activation rate
-SELECT
-    SELECT
-    COUNT(DISTINCT Photos.User_ID) AS creators,
-    COUNT(DISTINCT Users.ID) AS total_users,
-	concat(round(COUNT(DISTINCT Photos.User_ID) * 100.0
-        / COUNT(DISTINCT Users.ID), 0), '%') AS creator_rate_percent
-FROM Users
-LEFT JOIN Photos
-    ON Users.ID = Photos.User_ID;
-
--- 7. Posts per user
+- 2016 had the highest number of new user registrations, with 65 users.
+- 2017 had the lowest number of new user registrations, with 35 users.
+- User registrations were significantly higher in 2016 than in 2017.
+	
+-- 3. How is content creation distributed across users?
 SELECT
     Users.ID,
     Users.User_name,
@@ -61,3 +31,9 @@ LEFT JOIN Photos
     ON Users.ID = Photos.User_ID
 GROUP BY Users.ID, Users.User_name
 ORDER BY total_posts DESC;
+
+Results & Insights:
+- Top creators: Eveline95 (12 posts), Clint27 (11 posts) and Cesar93 (10 posts).
+- Low contributors: 18 users with only one post.
+- Active users: 74 users with atleast one post.
+- Inactive users: 26 users with 0 posts.
